@@ -1,0 +1,8 @@
+node_modules
+package-lock.json
+
+data/data.db
+data.db
+
+data/service-account.json
+service-account.json
