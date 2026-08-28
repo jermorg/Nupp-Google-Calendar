@@ -1,5 +1,8 @@
 # NUPP Google Calendar Sync
 
+[![Docker Pulls](https://img.shields.io/docker/pulls/jermorg/nupp-google-calendar?style=for-the-badge&logo=docker)](https://hub.docker.com/r/jermorg/nupp-google-calendar)
+[![Docker Image Version](https://img.shields.io/docker/v/jermorg/nupp-google-calendar?style=for-the-badge&logo=docker)](https://hub.docker.com/r/jermorg/nupp-google-calendar)
+
 >Автоматичний сервіс для фонової синхронізації розкладу Полтавської політехніки (НУПП) з вашим Google Календарем.
 
 1. Створіть локальну папку `data` поруч із `docker-compose.yml`.
