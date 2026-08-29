@@ -1,5 +1,8 @@
 # NUPP Google Calendar Sync
 
+[![Docker Pulls](https://img.shields.io/docker/pulls/jermorg/nupp-google-calendar?style=for-the-badge&logo=docker)](https://hub.docker.com/r/jermorg/nupp-google-calendar)
+[![Docker Image Version](https://img.shields.io/docker/v/jermorg/nupp-google-calendar?style=for-the-badge&logo=docker)](https://hub.docker.com/r/jermorg/nupp-google-calendar)
+
 >Автоматичний сервіс для фонової синхронізації розкладу Полтавської політехніки (НУПП) з вашим Google Календарем.
 
 1. Створіть локальну папку `data` поруч із `docker-compose.yml`.
@@ -30,7 +33,7 @@ services:
 | **`USER_NAME`** | **Так** |  | Логін від порталу NUPP. |
 | **`USER_PASSWORD`** | **Так** |  | Пароль від акаунта NUPP. |
 | **`INTERVAL`** | Ні | `60` | Інтервал автоматичної перевірки розкладу у **хвилинах**. |
-| **`DATE_START`** | Ні | *Поточний день* | Початкова дата для синхронізації у форматі `YYYY-MM-DD` (наприклад, `2026-09-01`). Якщо залишити порожнім - береться поточна дата. |
+| **`DATE_START`** | Ні | *Поточний день* | Початкова дата для синхронізації у форматі `YYYY-MM-DD` (наприклад, `2026-09-01`). Якщо залишити порожнім: береться поточна дата. |
 | **`DATE_END`** | Ні | *1 тиждень* | Кінцева дата синхронізації у форматі `YYYY-MM-DD` (наприклад, `2026-12-31`). Якщо порожньо: бере весь тиждень. |
 | **`BLOCK_HIDDEN_LESSONS`** | Ні | `true` | `true`: ігнорувати та не додавати до календаря пари, які позначені як приховані/скасовані. `false`: додавати всі пари без винятку. |
 | **`KEY_FILE`** | Ні | `/app/data/service-account.json` | Внутрішній шлях до файлу авторизації Google API. |
