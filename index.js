@@ -19,6 +19,8 @@ async function syncSchedule() {
     const processedKeys = new Set();
     const blockHidden = process.env.BLOCK_HIDDEN_LESSONS === 'true';
 
+    const changes = [];
+
     for (const day of rawSchedule) {
         for (const lesson of day.lessons) {
             for (const period of lesson.periods) {
@@ -56,6 +58,7 @@ async function syncSchedule() {
                 // 1. ДОДАНО НОВУ ПАРУ
                 // ----------------------------------------------------
                 console.log(`[+] Додано нову пару: ${day.date} - ${period.disciplineShortName}`);
+                changes.push(`[+] <b>Додано:</b> ${day.date} [${lesson.number}]\n<b>Предмет:</b> ${period.disciplineShortName} (${period.typeStr})\n<b>Аудиторія:</b> ${period.classroom || '—'}\n<b>Викладач:</b> ${period.teachersName || '—'}`);
                 
                 const googleEvent = await createGoogleCalendarEvent(lessonData);
                 const googleEventId = googleEvent.id;
@@ -97,6 +100,12 @@ async function syncSchedule() {
                 // ----------------------------------------------------
                 // 2. ОНОВЛЕННЯ ІСНУЮЧОЇ ПАРИ
                 // ----------------------------------------------------
+
+                const wasText = `${existing.disciplineShortName} (${existing.typeStr || '—'}) | ${existing.classroom || '—'} | ${existing.teachersName || '—'}`;
+                const isText = `${period.disciplineShortName} (${period.typeStr || '—'}) | ${period.classroom || '—'} | ${period.teachersName || '—'}`;
+
+                changes.push(`<b>[*] Змінено:</b> ${day.date} [${lesson.number}]\n<b>Було:</b> ${wasText}\n<b>Стало:</b> ${isText}`);
+
                 console.log(`[*] Оновлено пару: ${day.date} - ${period.disciplineShortName} (Знайдено зміни)`);
                 
                 await updateGoogleCalendarEvent(existing.google_event_id, lessonData);
@@ -138,11 +147,51 @@ async function syncSchedule() {
         if (!processedKeys.has(key)) {
             console.log(`[-] Видалено пару: ${oldLesson.date} (Пара №${oldLesson.lesson_number} - ${oldLesson.disciplineShortName})`);
 
+            changes.push(`[-] <b>Видалено:</b> ${oldLesson.date} [${oldLesson.lesson_number}]\n<b>Предмет:</b> ${oldLesson.disciplineShortName}`);
+
             if (oldLesson.google_event_id) {
                 await deleteGoogleCalendarEvent(oldLesson.google_event_id);
             }
             db.prepare('DELETE FROM lessons WHERE id = ?').run(oldLesson.id);
         }
+    }
+
+    if (changes.length > 0) {
+        const messageText = `<b>Зміни в розкладі:</b>\n\n` + changes.join('\n\n---\n\n');
+        await sendTelegramNotification(messageText);
+    }
+}
+
+async function sendTelegramNotification(text) {
+    if (process.env.TELEGRAM_NOTIFY !== 'true') return;
+
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+    const threadId = process.env.TELEGRAM_THREAD_ID;
+
+    if (!token || !chatId) {
+        console.error('[Telegram Error] Відсутній TELEGRAM_BOT_TOKEN або TELEGRAM_CHAT у .env');
+        return;
+    }
+
+    const payload = {
+        chat_id: chatId,
+        text: text,
+        parse_mode: 'HTML'
+    };
+
+    if (threadId) {
+        payload.message_thread_id = Number(threadId);
+    }
+
+    try {
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch (error) {
+        console.error('[Telegram Error] Помилка надсилання повідомлення:', error);
     }
 }
 
