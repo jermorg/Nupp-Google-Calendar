@@ -174,25 +174,51 @@ async function sendTelegramNotification(text) {
         return;
     }
 
-    const payload = {
-        chat_id: chatId,
-        text: text,
-        parse_mode: 'HTML'
-    };
+    const chunks = splitByBlocks(text);
 
-    if (threadId) {
-        payload.message_thread_id = Number(threadId);
+    for (const chunk of chunks) {
+        const payload = {
+            chat_id: chatId,
+            text: chunk,
+            parse_mode: 'HTML',
+            ...(threadId && { message_thread_id: Number(threadId) })
+        };
+
+        try {
+            const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                console.error('[Telegram Error]', err.description || err);
+            }
+        } catch (error) {
+            console.error('[Telegram Error]', error.message);
+        }
+    }
+}
+
+function splitByBlocks(text, limit = 4000) {
+    if (text.length <= limit) return [text];
+
+    const blocks = text.split(/(?=\n---|\n\n)/);
+    const chunks = [];
+    let current = '';
+
+    for (const block of blocks) {
+        if ((current + block).length > limit) {
+            if (current) chunks.push(current.trim());
+            current = block;
+        } else {
+            current += block;
+        }
     }
 
-    try {
-        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-    } catch (error) {
-        console.error('[Telegram Error] Помилка надсилання повідомлення:', error);
-    }
+    if (current.trim()) chunks.push(current.trim());
+    return chunks;
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
