@@ -14,7 +14,7 @@ async function syncSchedule() {
     const rawSchedule = await getUserSchedule();
 
     const existingRows = db.prepare('SELECT * FROM lessons WHERE userid = ?').all(userId);
-    const existingMap = new Map(existingRows.map(r => [`${r.date}_${r.lesson_number}`, r]));
+    const existingMap = new Map(existingRows.map(r => [`${r.date}_${r.lesson_number}_${r.disciplineShortName}_${r.typeStr}`, r]));
 
     const processedKeys = new Set();
     const blockHidden = process.env.BLOCK_HIDDEN_LESSONS === 'true';
@@ -29,7 +29,7 @@ async function syncSchedule() {
                 continue;
               }
 
-              const key = `${day.date}_${lesson.number}`;
+              const key = `${day.date}_${lesson.number}_${period.disciplineShortName}_${period.typeStr}`;
               processedKeys.add(key);
 
               const currentHash = `${period.disciplineShortName}|${period.classroom}|${period.timeStart}|${period.timeEnd}|${period.teachersName}`;
