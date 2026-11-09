@@ -1,4 +1,4 @@
-const { setCached, getCached, db } = require('./db.js');
+const { setCached, getCached } = require('./db.js');
 
 async function getUserAccessToken() {
     const res = await fetch(process.env.LOGIN_URL, {
@@ -43,8 +43,8 @@ async function getUserAccauntId(token) {
 }
 
 async function getUserCredentials(forceRefresh = false) {
-    let token = getCached('access_token');
-    let accountId = getCached('account_id');
+    let token = await getCached('access_token');
+    let accountId = await getCached('account_id');
 
     if (token && accountId && !forceRefresh) {
         return { token, accountId };
@@ -55,8 +55,8 @@ async function getUserCredentials(forceRefresh = false) {
     token = await getUserAccessToken();
     accountId = await getUserAccauntId(token);
 
-    setCached('access_token', token);
-    setCached('account_id', String(accountId));
+    await setCached('access_token', token);
+    await setCached('account_id', String(accountId));
 
     return { token, accountId };
 }

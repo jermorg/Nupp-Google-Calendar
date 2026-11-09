@@ -1,9 +1,22 @@
 require('dotenv').config();
-const { getUserSchedule, getUserCredentials } = require('./auth.js');
-const { createGoogleCalendarEvent, updateGoogleCalendarEvent, deleteGoogleCalendarEvent } = require('./google.js');
-const { db } = require('./db.js')
-const fs = require('fs');
-const path = require('path');
+const {
+    getUserSchedule,
+    getUserCredentials
+} = require('./auth.js');
+
+const {
+    createGoogleCalendarEvent,
+    updateGoogleCalendarEvent,
+    deleteGoogleCalendarEvent
+} = require('./google.js');
+
+const {
+    getLessonsByUserId,
+    insertLesson,
+    updateLessonByGoogleEventId,
+    deleteLessonById
+} = require('./db.js')
+
 
 const INTERVAL_ENV = parseInt(process.env.INTERVAL || '60', 10);
 const INTERVAL = INTERVAL_ENV * 60 * 1000;
@@ -13,129 +26,78 @@ async function syncSchedule() {
     const userId = Number(accountId);
     const rawSchedule = await getUserSchedule();
 
-    const existingRows = db.prepare('SELECT * FROM lessons WHERE userid = ?').all(userId);
+    const existingRows = await getLessonsByUserId(userId);
     const existingMap = new Map(existingRows.map(r => [`${r.date}_${r.lesson_number}_${r.disciplineShortName}_${r.typeStr}`, r]));
 
     const processedKeys = new Set();
-    const blockHidden = process.env.BLOCK_HIDDEN_LESSONS === 'true';
 
+    const blockHidden = process.env.BLOCK_HIDDEN_LESSONS === 'true';
     const changes = [];
 
     for (const day of rawSchedule) {
         for (const lesson of day.lessons) {
             for (const period of lesson.periods) {
 
-              if (blockHidden && (!period.disciplineShortName || period.disciplineShortName.includes('Приховано'))) {
-                continue;
-              }
+                if (blockHidden && (!period.disciplineShortName || period.disciplineShortName.includes('Приховано'))) continue;
 
-              const key = `${day.date}_${lesson.number}_${period.disciplineShortName}_${period.typeStr}`;
-              processedKeys.add(key);
+                const key = `${day.date}_${lesson.number}_${period.disciplineShortName}_${period.typeStr}`;
+                processedKeys.add(key);
 
-              const currentHash = `${period.disciplineShortName}|${period.classroom}|${period.timeStart}|${period.timeEnd}|${period.teachersName}`;
-              const existing = existingMap.get(key);
+                const currentHash = `${period.disciplineShortName}|${period.classroom}|${period.timeStart}|${period.timeEnd}|${period.teachersName}`;
+                const existing = existingMap.get(key);
 
-              // console.log(period)
-              // process.exit();
+                // console.log(period)
+                // process.exit();
 
-              const lessonData = {
-                  date: day.date,
-                  number: lesson.number,
-                  disciplineFullName: period.disciplineFullName,
-                  disciplineShortName: period.disciplineShortName,
-                  typeStr: period.typeStr,
-                  type: period.type,
-                  classroom: period.classroom,
-                  timeStart: period.timeStart,
-                  timeEnd: period.timeEnd,
-                  teachersName: period.teachersName,
-                  teachersNameFull: period.teachersNameFull,
-                  hash: currentHash
-              };
+                const lessonData = {
+                    userId: userId,
+                    date: day.date,
+                    number: lesson.number,
+                    disciplineFullName: period.disciplineFullName,
+                    disciplineShortName: period.disciplineShortName,
+                    typeStr: period.typeStr,
+                    type: period.type,
+                    classroom: period.classroom,
+                    timeStart: period.timeStart,
+                    timeEnd: period.timeEnd,
+                    teachersName: period.teachersName,
+                    teachersNameFull: period.teachersNameFull,
+                    rawHash: currentHash
+                };
 
-              if (!existing) {
-                // ----------------------------------------------------
-                // 1. ДОДАНО НОВУ ПАРУ
-                // ----------------------------------------------------
-                console.log(`[+] Додано нову пару: ${day.date} - ${period.disciplineShortName}`);
-                changes.push(`[+] <b>Додано:</b> ${day.date} [${lesson.number}]\n<b>Предмет:</b> ${period.disciplineShortName} (${period.typeStr})\n<b>Аудиторія:</b> ${period.classroom || '—'}\n<b>Викладач:</b> ${period.teachersName || '—'}`);
-                
-                const googleEvent = await createGoogleCalendarEvent(lessonData);
-                const googleEventId = googleEvent.id;
+                if (!existing) {
+                    // ----------------------------------------------------
+                    // 1. ДОДАНО НОВУ ПАРУ
+                    // ----------------------------------------------------
 
-                db.prepare(`
-                  INSERT INTO lessons (
-                    userid,
-                    date,
-                    lesson_number,
-                    disciplineShortName,
-                    typeStr,
-                    type,
-                    classroom,
-                    time_start,
-                    time_end,
-                    teachersName,
-                    teachersNameFull,
-                    google_event_id,
-                    raw_hash
-                  )
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `).run(
-                    userId,
-                    day.date,
-                    lesson.number,
-                    period.disciplineShortName,
-                    period.typeStr,
-                    period.type,
-                    period.classroom,
-                    period.timeStart,
-                    period.timeEnd,
-                    period.teachersName,
-                    period.teachersNameFull, 
-                    googleEventId,
-                    currentHash
-                );
+                    console.log(`[+] Додано нову пару: ${day.date} - ${period.disciplineShortName}`);
+                    changes.push(`[+] <b>Додано:</b> ${day.date} [${lesson.number}]\n<b>Предмет:</b> ${period.disciplineShortName} (${period.typeStr})\n<b>Аудиторія:</b> ${period.classroom || '—'}\n<b>Викладач:</b> ${period.teachersName || '—'}`);
+                    
+                    const googleEvent = await createGoogleCalendarEvent(lessonData);
 
-              } else if (existing.raw_hash !== currentHash) {
-                // ----------------------------------------------------
-                // 2. ОНОВЛЕННЯ ІСНУЮЧОЇ ПАРИ
-                // ----------------------------------------------------
+                    lessonData.googleEventId = googleEvent.id;
 
-                const wasText = `${existing.disciplineShortName} (${existing.typeStr || '—'}) | ${existing.classroom || '—'} | ${existing.teachersName || '—'}`;
-                const isText = `${period.disciplineShortName} (${period.typeStr || '—'}) | ${period.classroom || '—'} | ${period.teachersName || '—'}`;
+                    await insertLesson(lessonData);
 
-                changes.push(`<b>[*] Змінено:</b> ${day.date} [${lesson.number}]\n<b>Було:</b> ${wasText}\n<b>Стало:</b> ${isText}`);
+                } else if (existing.raw_hash !== currentHash) {
+                    // ----------------------------------------------------
+                    // 2. ОНОВЛЕННЯ ІСНУЮЧОЇ ПАРИ
+                    // ----------------------------------------------------
 
-                console.log(`[*] Оновлено пару: ${day.date} - ${period.disciplineShortName} (Знайдено зміни)`);
-                
-                await updateGoogleCalendarEvent(existing.google_event_id, lessonData);
+                    const wasText = `${existing.disciplineShortName} (${existing.typeStr || '—'}) | ${existing.classroom || '—'} | ${existing.teachersName || '—'}`;
+                    const isText = `${period.disciplineShortName} (${period.typeStr || '—'}) | ${period.classroom || '—'} | ${period.teachersName || '—'}`;
 
-                db.prepare(`
-                  UPDATE lessons 
-                  SET 
-                    disciplineShortName = ?,
-                    typeStr = ?,
-                    type = ?,
-                    classroom = ?,
-                    time_start = ?,
-                    time_end = ?,
-                    teachersName = ?,
-                    teachersNameFull = ?,
-                    raw_hash = ?
-                  WHERE google_event_id = ?
-                `).run(
-                    period.disciplineShortName,
-                    period.typeStr,
-                    period.type,
-                    period.classroom,
-                    period.timeStart,
-                    period.timeEnd,
-                    period.teachersName,
-                    period.teachersNameFull,
-                    currentHash,
-                    existing.google_event_id
-                );
-              }
+                    changes.push(`<b>[*] Змінено:</b> ${day.date} [${lesson.number}]\n<b>Було:</b> ${wasText}\n<b>Стало:</b> ${isText}`);
+
+                    console.log(`[*] Оновлено пару: ${day.date} - ${period.disciplineShortName} (Знайдено зміни)`);
+                    
+                    await updateGoogleCalendarEvent(existing.google_event_id, lessonData);
+
+                    lessonData.googleEventId = existing.google_event_id;
+
+                    await updateLessonByGoogleEventId(existing.google_event_id, lessonData);
+
+                }
             }
         }
     }
@@ -145,14 +107,14 @@ async function syncSchedule() {
     // ----------------------------------------------------
     for (const [key, oldLesson] of existingMap.entries()) {
         if (!processedKeys.has(key)) {
-            console.log(`[-] Видалено пару: ${oldLesson.date} (Пара №${oldLesson.lesson_number} - ${oldLesson.disciplineShortName})`);
 
-            changes.push(`[-] <b>Видалено:</b> ${oldLesson.date} [${oldLesson.lesson_number}]\n<b>Предмет:</b> ${oldLesson.disciplineShortName}`);
+            console.log(`[-] Видалено пару: ${oldLesson.date} (Пара №${oldLesson.lesson_number} - ${oldLesson.disciplineShortName})`);
+            changes.push(`[-] <b>Видалено:</b> ${oldLesson.date} [${oldLesson.lesson_number}]\n<b>Предмет:</b> ${oldLesson.disciplineShortName} (${oldLesson.typeStr})`);
 
             if (oldLesson.google_event_id) {
                 await deleteGoogleCalendarEvent(oldLesson.google_event_id);
             }
-            db.prepare('DELETE FROM lessons WHERE id = ?').run(oldLesson.id);
+            await deleteLessonById(oldLesson.id);
         }
     }
 
