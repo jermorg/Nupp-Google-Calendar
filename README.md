@@ -1,8 +1,14 @@
-# NUPP Google Calendar Sync
+<h1 align="center"> NUPP Google Calendar Sync</h1>
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/jermorg/nupp-google-calendar?style=for-the-badge&logo=docker)](https://hub.docker.com/r/jermorg/nupp-google-calendar)
-[![Docker Image Version](https://img.shields.io/docker/v/jermorg/nupp-google-calendar?style=for-the-badge&logo=docker)](https://hub.docker.com/r/jermorg/nupp-google-calendar)
-![Docker Image Size](https://img.shields.io/docker/image-size/jermorg/nupp-google-calendar?style=for-the-badge)
+<p align="center">
+  <a href="https://hub.docker.com/r/jermorg/nupp-google-calendar">
+    <img src="https://img.shields.io/docker/pulls/jermorg/nupp-google-calendar?style=for-the-badge&logo=docker" alt="Docker Pulls">
+  </a>
+  <a href="https://hub.docker.com/r/jermorg/nupp-google-calendar">
+    <img src="https://img.shields.io/docker/v/jermorg/nupp-google-calendar?style=for-the-badge&logo=docker" alt="Docker Image Version">
+  </a>
+  <img src="https://img.shields.io/docker/image-size/jermorg/nupp-google-calendar?style=for-the-badge" alt="Docker Image Size">
+</p>
 
 >Автоматичний сервіс для фонової синхронізації розкладу Полтавської політехніки (НУПП) з вашим Google Календарем.
 
@@ -26,6 +32,25 @@ services:
     volumes:
       - ./data:/app/data
 ```
+
+## Запуск не через docker
+```bash
+git clone https://github.com/jermorg/nupp-google-calendar.git
+cd nupp-google-calendar
+npm install
+```
+
+> ⚠️ **ВАЖЛИВО:** Обов'язково змініть поля у файлі `.env` під свої дані!
+
+Для запуску можна використати:
+```bash
+node index.js
+```
+Або [pm2 (process manager)](https://pm2.keymetrics.io/docs/usage/quick-start/)
+```bash
+pm2 start index.js --name "nupp-calendar"
+```
+Або інші альтернативи: [forever](https://www.npmjs.com/package/forever?activeTab=readme), nohup, systemd.
 
 ## Змінні оточення
 | Змінна | Обов'язкова | Дефолтне значення | Опис |
