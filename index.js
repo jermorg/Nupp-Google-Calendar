@@ -30,6 +30,8 @@ async function syncSchedule() {
     const userId = Number(accountId);
     const rawSchedule = await getUserSchedule();
 
+    console.dir(rawSchedule, { depth: null, colors: true });
+
     const existingRows = await getLessonsByUserId(userId);
     const existingMap = new Map(existingRows.map(r => [`${r.date}_${r.lesson_number}_${r.disciplineShortName}_${r.typeStr}`, r]));
 
@@ -112,12 +114,15 @@ async function syncSchedule() {
     for (const [key, oldLesson] of existingMap.entries()) {
         if (!processedKeys.has(key)) {
 
+            if (oldLesson.date < process.env.DATE_START || oldLesson.date > process.env.DATE_END) continue;
+
             console.log(`[-] Видалено пару: ${oldLesson.date} (Пара №${oldLesson.lesson_number} - ${oldLesson.disciplineShortName})`);
             changes.push(`[-] <b>Видалено:</b> ${oldLesson.date} [${oldLesson.lesson_number}]\n<b>Предмет:</b> ${oldLesson.disciplineShortName} (${oldLesson.typeStr})`);
 
             if (oldLesson.google_event_id) {
                 await deleteGoogleCalendarEvent(oldLesson.google_event_id);
             }
+
             await deleteLessonById(oldLesson.id);
         }
     }
