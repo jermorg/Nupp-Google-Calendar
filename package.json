@@ -6,7 +6,7 @@
     "sqlite3": "^6.0.1"
   },
   "name": "nupp-google-calendar",
-  "version": "1.1.1",
+  "version": "1.0",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -26,5 +26,5 @@
     "url": "https://github.com/jermorg/Nupp-Google-Calendar/issues"
   },
   "homepage": "https://github.com/jermorg/Nupp-Google-Calendar#readme",
-  "description": ""
+  "description": "An automated service for automatically syncing the Poltava Polytechnic (NUPP) schedule with Google Calendar."
 }

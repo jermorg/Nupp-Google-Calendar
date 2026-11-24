@@ -29,9 +29,7 @@ async function syncSchedule() {
     const { accountId } = await getUserCredentials();
     const userId = Number(accountId);
     const rawSchedule = await getUserSchedule();
-
-    console.dir(rawSchedule, { depth: null, colors: true });
-
+    
     const existingRows = await getLessonsByUserId(userId);
     const existingMap = new Map(existingRows.map(r => [`${r.date}_${r.lesson_number}_${r.disciplineShortName}_${r.typeStr}`, r]));
 
