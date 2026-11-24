@@ -91,6 +91,8 @@ function getColorForCalendar(type){
         colorId = '8';
     } else if (type.includes('Конс') || type.includes('Екз')) {
         colorId = '4';
+    } else if (type.includes('Зал')) {
+        colorId = '10';
     }
 
     return colorId;
